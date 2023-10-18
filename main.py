@@ -1,7 +1,12 @@
 import re
+import tkinter as tk
+from datetime import datetime
+from tkinter import filedialog
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import tabula
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 
 def by_page(pdf_file_path, page):
@@ -170,7 +175,7 @@ def data_clean(df_list):
                     # 使用 pd.concat 将空 DataFrame 与原始 DataFrame 连接
                     df = pd.concat([df, empty_row], ignore_index=True)
                 # 合并上下两个单元格的数据到最后一个单元格
-                df.iloc[i, nan_id]  = str(df.iloc[i - 1, nan_id]) + str(df.iloc[i + 1, nan_id])
+                df.iloc[i, nan_id] = str(df.iloc[i - 1, nan_id]) + str(df.iloc[i + 1, nan_id])
                 # 删除上下两行的数据
                 df = df.drop([i - 1, i + 1])
                 df = df.reset_index(drop=True)
@@ -229,34 +234,136 @@ def data_clean(df_list):
         items = [item for item in df.columns.tolist() if item not in list_columns]
         df.drop(axis=1, inplace=True, columns=items)
 
+        print(f'第 {idx + 1}/{len(df_list)} 页数据处理完成...')
+
     # 3.合并数据list
     # 使用 concat 函数合并所有 DataFrame
-    merged_df = pd.concat(df_list, ignore_index=True)
+    df = pd.concat(df_list, ignore_index=True)
 
-    return merged_df
+    # 4.格式化数据
+    # 设置日期列为datetime类型
+    df["记账日期"] = pd.to_datetime(df["记账日期"])
+    # 设置金额和余额为整数（分 0.01元）
+    df["交易金额"] = (df["交易金额"].replace(",", "", regex=True).astype(float) * 100).astype(int)
+    df["联机余额"] = (df["联机余额"].replace(",", "", regex=True).astype(float) * 100).astype(int)
+    df["交易金额"] = pd.to_numeric(df["交易金额"])
+    df["联机余额"] = pd.to_numeric(df["联机余额"])
+    # 设置货币列为category类型
+    df["货币"] = df["货币"].astype("category")
+    # 设置str
+    df["交易摘要"] = df["交易摘要"].astype("str")
+    df["对手信息"] = df["对手信息"].astype("category")
+
+    return df
 
 
-def toxlsx(df_list):
+def toxlsx(df):
     # 指定Excel文件路径
     excel_file_path = 'output.xlsx'
-    df_list.to_excel(excel_file_path, index=False)
-    # 打印表格数据
-    # for idx, df in enumerate(df_list):
-    #     # 指定Excel文件路径
-    #     excel_file_path = str(idx) + 'output.xlsx'
-    #     print(f"表格 {idx + 1}:\n{df}\n")
-    #     # 使用to_excel方法保存DataFrame为Excel文件
-    #     # todo
-    #     df.to_excel(excel_file_path, index=False)
+
+    # 创建一个 Excel 写入器
+    writer = pd.ExcelWriter('output.xlsx', engine='openpyxl')
+    df.to_excel(writer, sheet_name='Sheet1', index=False)
+
+    # 获取 Excel 的工作簿和工作表
+    workbook = writer.book
+    worksheet = writer.sheets['Sheet1']
+
+    # 创建日期单元格格式
+    date_format = 'yyyy-mm-dd'
+
+    # 将各个格式应用到对于的单元格（假设数据第二行开始）
+    for row_idx, row in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
+        for col_idx, value in enumerate(row, 1):
+            cell = worksheet.cell(row=row_idx, column=col_idx)
+            if isinstance(value, datetime):
+                cell.number_format = date_format
+            if isinstance(value, int):
+                cell.value = cell.value / 100
+                cell.number_format = '0.00'
+
+    # 保存 Excel 文件
+    writer._save()
+
+
+def format_number2k(value):
+    # 将数字转换为"k"为单位的形式
+    if abs(value) >= 1000:
+        return f"{value / 1000:.1f}k"
+    else:
+        return f"{value:.1f}"
+
+
+def to_pic(df):
+    # 按照 "对手信息" 列进行分类统计 "交易金额" 列的总和
+    data = df.groupby('对手信息', observed=True)['交易金额'].sum()
+    # 将交易金额从 int64 转换为浮点数并保留两位小数
+    result = (data / 100).astype('float').round(2)
+    # 排序并选择前30个数据
+    result = result.sort_values(ascending=False, key=abs).head(30)
+    # 设置中文字体（示例使用微软雅黑，请根据您的系统和字体选择适合的字体）
+    plt.rcParams['font.family'] = 'Microsoft YaHei'  # 使用微软雅黑
+    plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示为方块的问题
+    plt.figure(figsize=(8, 4), dpi=500)
+    plt.xticks(rotation=-45, fontsize=4)
+    plt.yticks(rotation=45, fontsize=4)
+    plt.xlabel('对手信息')
+    plt.ylabel('交易金额')
+    plt.title('对手信息 - 交易金额 （金额前30）')
+
+    # 绘制柱状图
+    ax = result.plot(kind='bar')
+    # 在每个柱形上添加数据值
+    for i, v in enumerate(result):
+        # 调整数据值的位置，负数显示在图形下面
+        va = 'top' if v < 0 else 'bottom'
+        ax.text(i, v, format_number2k(v), ha='center', va=va, fontsize=4)
+    # 保存柱状图为图片文件，设置tight bbox
+    plt.savefig('bar_chart.png', bbox_inches='tight')
+
+
+def open_file():
+    print('请选择要打开的pdf文件：')
+    # 创建 tkinter 窗口
+    root = tk.Tk()
+    root.withdraw()  # 隐藏主窗口
+    # 打开文件对话框，等待用户选择文件
+    file_path = filedialog.askopenfilename()
+    # 检查用户是否选择了文件
+    if file_path:
+        print("文件路径是:", file_path)
+    elif file_path == '':
+        print("用户取消了文件选择")
+    else:
+        print("用户取消了文件选择")
+    # 关闭 tkinter 窗口
+    root.destroy()
+    return file_path
 
 
 if __name__ == '__main__':
-    # 指定PDF文件路径
-    pdf_file_path = "res/2.pdf"
+    print('欢迎使用pdf流水信息处理工具 v0.8.0 2023/10/10')
+    print('https://github.com/youzhiran')
+    print('2668760098@qq.com')
 
+    # 指定PDF文件路径
+    # pdf_file_path = "res/1.pdf"
+
+    pdf_file_path = open_file()
+
+    print('1/4 数据读取...')
     df_list = by_tabula(pdf_file_path)
     # df_list = by_page(pdf_file_path, 56)
-    df_list = data_clean(df_list)
-    toxlsx(df_list)
 
-    print(df_list)
+    # 数据清洗
+    print('2/4 数据清洗...')
+    df = data_clean(df_list)
+
+    print('3/4 制作图表...')
+    to_pic(df)
+
+    print('4/4 制作表格...')
+    toxlsx(df)
+
+    print('处理完成！')
+    # print(df_list)
