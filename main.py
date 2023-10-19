@@ -55,9 +55,9 @@ def by_tabula(pdf_file_path):
 def single_nan_cell_in_row(df, row_index):
     """
     判断DataFrame的指定行是否只有一个单元格包含nan。
-    :param df: df (DataFrame): 要操作的DataFrame。
-    :param row_index: 要检查的行的索引。
-    :return: int: 如果只有一个单元格包含数据，返回列序号，否则返回-1。
+    :param df: 要操作的DataFrame
+    :param row_index: 要检查的行的索引
+    :return: 如果只有一个单元格包含数据，返回列序号，否则返回-1。
     """
 
     # 不在数据区域直接返回 none
@@ -109,13 +109,10 @@ def has_num(text):
 def has_chinese(text):
     """
     检查文本中是否包含中文字符。
-
-    参数：
-    text (str): 要检查的文本。
-
-    返回：
-    bool: 如果文本中包含中文字符，返回True，否则返回False。
+    :param text: 要检查的文本。
+    :return: 如果文本中包含中文字符，返回True，否则返回False。
     """
+
     pattern = re.compile(r'[\u4e00-\u9fa5]')  # 中文字符的正则表达式范围
     return bool(pattern.search(text))
 
@@ -358,7 +355,7 @@ def init_conf():
 
 
 if __name__ == '__main__':
-    print('欢迎使用招商银行pdf流水信息处理工具 v0.8.1')
+    print('欢迎使用招商银行pdf流水信息处理工具 v0.8.2')
     print('https://github.com/youzhiran')
     print('2668760098@qq.com')
 
