@@ -358,12 +358,9 @@ def init_conf():
 
 
 if __name__ == '__main__':
-    print('欢迎使用pdf流水信息处理工具 v0.8.0 2023/10/10')
+    print('欢迎使用招商银行pdf流水信息处理工具 v0.8.1')
     print('https://github.com/youzhiran')
     print('2668760098@qq.com')
-
-    # 指定PDF文件路径
-    # pdf_file_path = "res/1.pdf"
 
     init_conf()
 
