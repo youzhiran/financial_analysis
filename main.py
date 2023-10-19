@@ -1,3 +1,4 @@
+import configparser
 import re
 import tkinter as tk
 from datetime import datetime
@@ -6,7 +7,10 @@ from tkinter import filedialog
 import matplotlib.pyplot as plt
 import pandas as pd
 import tabula
+from openpyxl.utils import get_column_letter
 from openpyxl.utils.dataframe import dataframe_to_rows
+
+save_path = ''
 
 
 def by_page(pdf_file_path, page):
@@ -33,7 +37,7 @@ def by_tabula(pdf_file_path):
                               silent=True,  # Suppress all stderr output
                               )
 
-    ##### 重新生成第一个
+    # 重新生成第一个
     area1 = [230.0, 35.0, 735.0, 560.0]
     df1 = tabula.read_pdf(pdf_file_path,
                           multiple_tables=True,
@@ -257,33 +261,32 @@ def data_clean(df_list):
     return df
 
 
-def toxlsx(df):
-    # 指定Excel文件路径
-    excel_file_path = 'output.xlsx'
+def to_xlsx(df):
+    # 创建一个 Excel 写入器，使用 with 语句来管理文件
+    with pd.ExcelWriter(save_path + '/output.xlsx', engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Sheet1', index=False)
 
-    # 创建一个 Excel 写入器
-    writer = pd.ExcelWriter('output.xlsx', engine='openpyxl')
-    df.to_excel(writer, sheet_name='Sheet1', index=False)
+        # 获取 Excel 的工作簿和工作表
+        workbook = writer.book
+        worksheet = writer.sheets['Sheet1']
 
-    # 获取 Excel 的工作簿和工作表
-    workbook = writer.book
-    worksheet = writer.sheets['Sheet1']
+        # 创建日期单元格格式
+        date_format = 'yyyy-mm-dd'
 
-    # 创建日期单元格格式
-    date_format = 'yyyy-mm-dd'
+        # 将各个格式应用到对于的单元格（假设数据从第二行开始）
+        for row_idx, row in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
+            for col_idx, value in enumerate(row, 1):
+                cell = worksheet.cell(row=row_idx, column=col_idx)
+                if isinstance(value, datetime):
+                    cell.number_format = date_format
+                if isinstance(value, int):
+                    cell.value = cell.value / 100
+                    cell.number_format = '0.00'
 
-    # 将各个格式应用到对于的单元格（假设数据第二行开始）
-    for row_idx, row in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
-        for col_idx, value in enumerate(row, 1):
-            cell = worksheet.cell(row=row_idx, column=col_idx)
-            if isinstance(value, datetime):
-                cell.number_format = date_format
-            if isinstance(value, int):
-                cell.value = cell.value / 100
-                cell.number_format = '0.00'
-
-    # 保存 Excel 文件
-    writer._save()
+        # 对每列进行最合适的列宽操作
+        for col_idx, column in enumerate(df, 1):
+            max_length = max(df[column].astype(str).str.len().max(), len(column)) * 2
+            worksheet.column_dimensions[get_column_letter(col_idx)].width = max_length
 
 
 def format_number2k(value):
@@ -319,7 +322,7 @@ def to_pic(df):
         va = 'top' if v < 0 else 'bottom'
         ax.text(i, v, format_number2k(v), ha='center', va=va, fontsize=4)
     # 保存柱状图为图片文件，设置tight bbox
-    plt.savefig('bar_chart.png', bbox_inches='tight')
+    plt.savefig(save_path + '/bar_chart.png', bbox_inches='tight')
 
 
 def open_file():
@@ -341,6 +344,19 @@ def open_file():
     return file_path
 
 
+def init_conf():
+    global save_path
+
+    # 创建配置解析器对象
+    config = configparser.ConfigParser()
+    # 读取配置文件
+    config.read('config.ini')
+    # 读取配置项
+
+    save_path = config.get('App', 'save_path')
+    print('已读取文件存储路径配置为： ' + save_path)
+
+
 if __name__ == '__main__':
     print('欢迎使用pdf流水信息处理工具 v0.8.0 2023/10/10')
     print('https://github.com/youzhiran')
@@ -348,6 +364,8 @@ if __name__ == '__main__':
 
     # 指定PDF文件路径
     # pdf_file_path = "res/1.pdf"
+
+    init_conf()
 
     pdf_file_path = open_file()
 
@@ -363,7 +381,7 @@ if __name__ == '__main__':
     to_pic(df)
 
     print('4/4 制作表格...')
-    toxlsx(df)
+    to_xlsx(df)
 
     print('处理完成！')
-    # print(df_list)
+    print('文件已存储在： ' + save_path)
