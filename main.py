@@ -1,4 +1,5 @@
 import configparser
+import os
 import re
 import tkinter as tk
 from datetime import datetime
@@ -11,24 +12,18 @@ from openpyxl.utils import get_column_letter
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 save_path = ''
-
-
-def by_page(pdf_file_path, page):
-    area = [35.0, 35.0, 735.0, 560.0]
-
-    df_list = tabula.read_pdf(pdf_file_path,
-                              multiple_tables=True,
-                              pages=page,
-                              area=area,
-                              silent=True,  # Suppress all stderr output
-                              )
-    return df_list
+config = configparser.ConfigParser()
+config.read('config.ini', encoding='utf-8')
 
 
 def by_tabula(pdf_file_path):
     #  [top, left, bottom, right]
-    area = [35.0, 35.0, 735.0, 560.0]
-    # area = [80.0, 35.0, 735.0, 560.0]
+    # 读取配置项的值
+    area_str = config.get('App', 'area')
+    area1_str = config.get('App', 'area1')
+    # 将字符串解析为列表
+    area = [float(x) for x in area_str.split(',')]
+    area1 = [float(x) for x in area1_str.split(',')]
 
     df_list = tabula.read_pdf(pdf_file_path,
                               multiple_tables=True,
@@ -38,7 +33,6 @@ def by_tabula(pdf_file_path):
                               )
 
     # 重新生成第一个
-    area1 = [230.0, 35.0, 735.0, 560.0]
     df1 = tabula.read_pdf(pdf_file_path,
                           multiple_tables=True,
                           pages="1",
@@ -341,15 +335,9 @@ def open_file():
     return file_path
 
 
-def init_conf():
+def read_path():
     global save_path
-
-    # 创建配置解析器对象
-    config = configparser.ConfigParser()
-    # 读取配置文件
-    config.read('config.ini')
     # 读取配置项
-
     save_path = config.get('App', 'save_path')
     print('已读取文件存储路径配置为： ' + save_path)
 
@@ -359,7 +347,7 @@ if __name__ == '__main__':
     print('https://github.com/youzhiran')
     print('2668760098@qq.com')
 
-    init_conf()
+    read_path()
 
     pdf_file_path = open_file()
 
@@ -378,4 +366,4 @@ if __name__ == '__main__':
     to_xlsx(df)
 
     print('处理完成！')
-    print('文件已存储在： ' + save_path)
+    print('文件已存储在： ' + os.path.join(os.getcwd(), save_path))
