@@ -254,7 +254,7 @@ def data_clean(df_list):
 
 def to_xlsx(df):
     # 创建一个 Excel 写入器，使用 with 语句来管理文件
-    with pd.ExcelWriter(save_path + '/output.xlsx', engine='openpyxl') as writer:
+    with pd.ExcelWriter(os.path.join(save_path, 'output.xlsx'), engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='Sheet1', index=False)
 
         # 获取 Excel 的工作簿和工作表
@@ -313,7 +313,9 @@ def to_pic(df):
         va = 'top' if v < 0 else 'bottom'
         ax.text(i, v, format_number2k(v), ha='center', va=va, fontsize=4)
     # 保存柱状图为图片文件，设置tight bbox
-    plt.savefig(save_path + '/bar_chart.png', bbox_inches='tight')
+
+    # plt.savefig(save_path + 'bar_chart.png', bbox_inches='tight')
+    plt.savefig(os.path.join(save_path, 'bar_chart.png'), bbox_inches='tight')
 
 
 def open_file():
@@ -339,11 +341,18 @@ def read_path():
     global save_path
     # 读取配置项
     save_path = config.get('App', 'save_path')
-    print('已读取文件存储路径配置为： ' + save_path)
+    save_path = os.path.join(os.getcwd(), save_path)
+
+    # 判断save_path是否存在，不存在则创建这个目录。同时支持绝对路径和相对路径。
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    print('已读取并整合文件存储路径配置为： ' + save_path)
 
 
 if __name__ == '__main__':
-    print('欢迎使用招商银行pdf流水信息处理工具 v0.8.2')
+    # todo 更改版本号
+    print('欢迎使用招商银行pdf流水信息处理工具 v0.8.4')
     print('https://github.com/youzhiran')
     print('2668760098@qq.com')
 
@@ -366,4 +375,7 @@ if __name__ == '__main__':
     to_xlsx(df)
 
     print('处理完成！')
-    print('文件已存储在： ' + os.path.join(os.getcwd(), save_path))
+    print('文件已存储在： ' + save_path)
+
+    input("处理完成！！按任意键退出")
+
