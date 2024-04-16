@@ -17,4 +17,9 @@
 | area      | pdf边距定义，[top, left, bottom, right] ， 一般不需要更改   |
 | area1     | pdf第一页边距定义，[top, left, bottom, right]， 一般不需要更改 |
 
+## Stargazers over time
+没想到还有除群友以外的朋友star，感谢使用~
+[![Stargazers over time](https://starchart.cc/youzhiran/financial_analysis.svg?variant=adaptive)](https://starchart.cc/youzhiran/financial_analysis)
+
+
 _此项目为本人学习Python所用，仅供个人学习使用_
